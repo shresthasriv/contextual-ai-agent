@@ -23,21 +23,22 @@ export class WeatherPlugin implements Plugin {
       if (!location) {
         return {
           success: false,
-          shouldRespond: true,
-          response: 'Please specify a city name for weather information.'
+          error: 'No location specified',
+          contextInfo: 'User requested weather information but did not specify a location.'
         };
       }
 
       if (!this.apiKey) {
         return {
           success: false,
-          shouldRespond: true,
-          response: 'Weather service is currently unavailable. Please try again later.'
+          error: 'Weather API not configured',
+          contextInfo: 'Weather service is currently unavailable.'
         };
       }
 
       const weatherData = await this.fetchWeatherData(location);
-      const response = this.formatWeatherResponse(weatherData);
+      const contextInfo = `Weather data for ${location}:
+${JSON.stringify(weatherData, null, 2)}`;
 
       Logger.info('Weather plugin executed successfully', {
         sessionId: context.sessionId,
@@ -47,8 +48,8 @@ export class WeatherPlugin implements Plugin {
       return {
         success: true,
         data: weatherData,
-        shouldRespond: true,
-        response
+        pluginUsed: 'weather',
+        contextInfo
       };
     } catch (error) {
       Logger.error('Weather plugin execution failed', {
@@ -58,18 +59,18 @@ export class WeatherPlugin implements Plugin {
 
       return {
         success: false,
-        shouldRespond: true,
-        response: 'Sorry, I couldn\'t retrieve weather information at the moment.'
+        error: 'Weather fetch failed',
+        contextInfo: 'Unable to retrieve weather information at the moment.'
       };
     }
   }
 
   private extractLocation(message: string): string | null {
     const patterns = [
-      /weather\s+(?:in|at|for)\s+([a-zA-Z\s,]+?)(?:\?|$|\.)/i,
-      /(?:in|at|for)\s+([a-zA-Z\s,]+?)\s+weather/i,
-      /weather\s+([a-zA-Z\s,]+?)(?:\?|$|\.)/i,
-      /temperature\s+(?:in|at|for)\s+([a-zA-Z\s,]+?)(?:\?|$|\.)/i
+      /weather.*?(?:in|at|for)\s+([a-zA-Z\s,]+)/i,
+      /(?:in|at|for)\s+([a-zA-Z\s,]+?).*?weather/i,
+      /weather\s+([a-zA-Z\s,]+)/i,
+      /temperature.*?(?:in|at|for)\s+([a-zA-Z\s,]+)/i
     ];
 
     for (const pattern of patterns) {
@@ -77,6 +78,12 @@ export class WeatherPlugin implements Plugin {
       if (match && match[1]) {
         return match[1].trim();
       }
+    }
+
+    // Fallback: just extract any city name after common words
+    const fallback = message.match(/(?:weather|temperature).*?([A-Z][a-zA-Z\s]+)/i);
+    if (fallback && fallback[1]) {
+      return fallback[1].trim();
     }
 
     return null;
@@ -122,5 +129,10 @@ export class WeatherPlugin implements Plugin {
 **UV Index:** ${uvIndex}${airQualityText}
 
 *Last updated: ${data.current.last_updated}*`;
+  }
+
+  private getAirQualityDescription(index: number): string {
+    const descriptions = ['Good', 'Moderate', 'Unhealthy for Sensitive Groups', 'Unhealthy', 'Very Unhealthy', 'Hazardous'];
+    return descriptions[index - 1] || 'Unknown';
   }
 }

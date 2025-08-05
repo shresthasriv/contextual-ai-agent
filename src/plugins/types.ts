@@ -8,8 +8,8 @@ export interface PluginResult {
   success: boolean;
   data?: any;
   error?: string;
-  shouldRespond: boolean;
-  response?: string;
+  pluginUsed?: string;
+  contextInfo?: string; // Information to inject into LLM prompt
 }
 
 export interface Plugin {

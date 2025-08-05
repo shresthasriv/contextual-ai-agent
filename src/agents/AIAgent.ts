@@ -75,19 +75,15 @@ export class AIAgent {
       conversationHistory
     });
 
+    const relevantContext = await this.ragService.getRelevantContext(userMessage);
+    const openaiClient = this.getOpenAIClient();
+    
     let response: string;
-
-    if (pluginResult?.shouldRespond && pluginResult.response) {
-      response = pluginResult.response;
+    
+    if (openaiClient) {
+      response = await this.generateOpenAIResponse(sessionId, conversationHistory, relevantContext, pluginResult, openaiClient);
     } else {
-      const relevantContext = await this.ragService.getRelevantContext(userMessage);
-      const openaiClient = this.getOpenAIClient();
-      
-      if (openaiClient) {
-        response = await this.generateOpenAIResponse(sessionId, conversationHistory, relevantContext, openaiClient);
-      } else {
-        response = "client not initialized, unable to generate response.";
-      }
+      response = 'I\'m experiencing technical difficulties. Please try again.';
     }
 
     const assistantMessage: ChatMessage = {
@@ -105,10 +101,11 @@ export class AIAgent {
     sessionId: string, 
     conversationHistory: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
     relevantContext: string,
+    pluginResult: any,
     openaiClient: OpenAI
   ): Promise<string> {
     try {
-      const systemPrompt = await this.buildSystemPrompt(sessionId, relevantContext);
+      const systemPrompt = await this.buildSystemPrompt(sessionId, relevantContext, pluginResult);
       
       const completion = await openaiClient.chat.completions.create({
         model: this.config.model,
@@ -127,26 +124,52 @@ export class AIAgent {
     }
   }
 
-  private async buildSystemPrompt(sessionId: string, relevantContext: string): Promise<string> {
+  private async buildSystemPrompt(sessionId: string, relevantContext: string, pluginResult?: any): Promise<string> {
     const session = await this.memoryStore.getSession(sessionId);
     const messageCount = session?.metadata?.message_count || 0;
     const availablePlugins = this.pluginManager.getAvailablePlugins();
 
+    const recentMessages = await this.memoryStore.getRecentMessages(sessionId, 2);
+    const memorySummary = recentMessages.length > 0 
+      ? recentMessages.map((msg: ChatMessage) => `${msg.role}: ${msg.content}`).join('\n')
+      : 'No previous conversation history.';
+
     let prompt = `You are a helpful AI assistant with access to plugins and a knowledge base about markup languages, blogging, and technical documentation.
 
-    Keep your responses conversational and helpful. You have access to the following capabilities:
-    ${availablePlugins.map(plugin => `- ${plugin.name}: ${plugin.description}`).join('\n')}
+Keep your responses conversational and helpful. You have access to the following capabilities:
+${availablePlugins.map(plugin => `- ${plugin.name}: ${plugin.description}`).join('\n')}
 
-    Current session: ${sessionId}
-    Message count in this session: ${messageCount}`;
+Current session: ${sessionId}
+Message count in this session: ${messageCount}
 
-        if (relevantContext) {
-            prompt += `
+## Memory Summary (Last 2 messages):
+${memorySummary}`;
 
-    ## Relevant Knowledge Base Information:
-    ${relevantContext}
+    if (relevantContext) {
+      prompt += `
 
-    Use this information to provide more accurate and detailed responses when relevant to the user's question.`;
+## Relevant Knowledge Base Information:
+${relevantContext}
+
+Use this information to provide more accurate and detailed responses when relevant to the user's question.`;
+    }
+
+    if (pluginResult?.success && pluginResult.contextInfo) {
+      prompt += `
+
+## Plugin Output:
+Plugin used: ${pluginResult.pluginUsed || 'unknown'}
+${pluginResult.contextInfo}
+
+Use this plugin data to enhance your response. Provide a natural, conversational response that incorporates the plugin results.`;
+    } else if (pluginResult && !pluginResult.success) {
+      prompt += `
+
+## Plugin Information:
+A plugin was triggered but encountered an issue: ${pluginResult.error || 'Unknown error'}
+Additional context: ${pluginResult.contextInfo || 'No additional context'}
+
+Acknowledge the issue and provide a helpful response based on what you can determine from the user's request.`;
     }
 
     if (this.config.systemPrompt) {
@@ -154,9 +177,7 @@ export class AIAgent {
     }
 
     return prompt;
-  }
-
-  getAvailablePlugins(): Array<{ name: string; description: string }> {
+  }  getAvailablePlugins(): Array<{ name: string; description: string }> {
     return this.pluginManager.getAvailablePlugins();
   }
 

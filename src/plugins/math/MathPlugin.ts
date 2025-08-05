@@ -20,13 +20,15 @@ export class MathPlugin implements Plugin {
       if (!expression) {
         return {
           success: false,
-          shouldRespond: true,
-          response: 'Please provide a mathematical expression to calculate.'
+          error: 'No math expression found',
+          contextInfo: 'User requested a mathematical calculation but no valid expression was detected.'
         };
       }
 
       const result = this.evaluateExpression(expression);
-      const response = this.formatMathResponse(expression, result);
+      const contextInfo = `Mathematical calculation performed:
+Expression: ${expression}
+Result: ${result}`;
 
       Logger.info('Math plugin executed successfully', {
         sessionId: context.sessionId,
@@ -37,8 +39,8 @@ export class MathPlugin implements Plugin {
       return {
         success: true,
         data: { expression, result },
-        shouldRespond: true,
-        response
+        pluginUsed: 'math',
+        contextInfo
       };
     } catch (error) {
       Logger.error('Math plugin execution failed', {
@@ -48,8 +50,8 @@ export class MathPlugin implements Plugin {
 
       return {
         success: false,
-        shouldRespond: true,
-        response: 'Sorry, I couldn\'t process that mathematical expression.'
+        error: 'Math calculation failed',
+        contextInfo: 'Unable to perform the mathematical calculation.'
       };
     }
   }
