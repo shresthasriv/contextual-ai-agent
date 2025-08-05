@@ -86,7 +86,7 @@ export class AIAgent {
       if (openaiClient) {
         response = await this.generateOpenAIResponse(sessionId, conversationHistory, relevantContext, openaiClient);
       } else {
-        response = this.generateMockResponse(userMessage, sessionId);
+        response = "client not initialized, unable to generate response.";
       }
     }
 
@@ -127,10 +127,6 @@ export class AIAgent {
     }
   }
 
-  private generateMockResponse(userMessage: string, sessionId: string): string {
-    return `Mock AI Response: I received your message "${userMessage}". This is a development placeholder response for session ${sessionId}. OpenAI integration will be enabled with a valid API key.`;
-  }
-
   private async buildSystemPrompt(sessionId: string, relevantContext: string): Promise<string> {
     const session = await this.memoryStore.getSession(sessionId);
     const messageCount = session?.metadata?.message_count || 0;
@@ -138,19 +134,19 @@ export class AIAgent {
 
     let prompt = `You are a helpful AI assistant with access to plugins and a knowledge base about markup languages, blogging, and technical documentation.
 
-Keep your responses conversational and helpful. You have access to the following capabilities:
-${availablePlugins.map(plugin => `- ${plugin.name}: ${plugin.description}`).join('\n')}
+    Keep your responses conversational and helpful. You have access to the following capabilities:
+    ${availablePlugins.map(plugin => `- ${plugin.name}: ${plugin.description}`).join('\n')}
 
-Current session: ${sessionId}
-Message count in this session: ${messageCount}`;
+    Current session: ${sessionId}
+    Message count in this session: ${messageCount}`;
 
-    if (relevantContext) {
-      prompt += `
+        if (relevantContext) {
+            prompt += `
 
-## Relevant Knowledge Base Information:
-${relevantContext}
+    ## Relevant Knowledge Base Information:
+    ${relevantContext}
 
-Use this information to provide more accurate and detailed responses when relevant to the user's question.`;
+    Use this information to provide more accurate and detailed responses when relevant to the user's question.`;
     }
 
     if (this.config.systemPrompt) {

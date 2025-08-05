@@ -9,9 +9,24 @@ export class RedisMemoryStore implements MemoryStore {
   private connected = false;
 
   constructor(url?: string) {
-    this.client = createClient({
-      url: url || process.env.REDIS_URL || 'redis://localhost:6379'
-    });
+    const redisUrl = url || process.env.REDIS_URL || 'redis://localhost:6379';
+
+    const clientOptions: any = {
+      url: redisUrl
+    };
+
+    if (redisUrl.startsWith('rediss://')) {
+      clientOptions.socket = {
+        tls: true,
+        rejectUnauthorized: false,
+        connectTimeout: 10000,
+        commandTimeout: 5000
+      };
+    }
+    clientOptions.retry_unfulfilled_commands = true;
+    clientOptions.retryDelayOnFailover = 100;
+
+    this.client = createClient(clientOptions);
 
     this.client.on('error', (err) => {
       Logger.error('Redis connection error', { error: err.message });

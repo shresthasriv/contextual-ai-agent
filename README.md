@@ -6,7 +6,7 @@ A TypeScript backend server that combines AI conversation capabilities with Retr
 
 ### Prerequisites
 - Node.js 18+
-- Redis server (local or remote)
+- Redis server (local, Upstash, or remote)
 - OpenAI API Key
 - WeatherAPI Key (for weather plugin)
 
@@ -22,13 +22,16 @@ npm install
 2. Create `.env` file:
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
-REDIS_URL=redis://localhost:6379
+REDIS_URL=redis://localhost:6379  # or your Upstash Redis URL
 WEATHER_API_KEY=your_weatherapi_key_here
 PORT=3000
 NODE_ENV=development
+ALLOWED_ORIGINS=*
 ```
 
 3. Start Redis server:
+
+**Option 1: Local Redis**
 ```bash
 # Ubuntu/Debian
 sudo systemctl start redis-server
@@ -39,6 +42,11 @@ brew services start redis
 # Docker
 docker run -d -p 6379:6379 redis:alpine
 ```
+
+**Option 2: Upstash Redis (Recommended for Production)**
+1. Go to [console.upstash.com](https://console.upstash.com)
+2. Sign up and create a new Redis database
+3. Copy the `REDIS_URL` (starts with `rediss://`) to your `.env` file
 
 4. Run the server:
 ```bash
