@@ -79,7 +79,7 @@ curl -X POST http://localhost:3000/agent/message \
 
 ### Document Search (RAG)
 ```bash
-curl "http://localhost:3000/agent/search?q=markdown&limit=3"
+curl "http://localhost:3000/agent/search?query=markdown&limit=3"
 ```
 
 ### Session Information
@@ -110,6 +110,28 @@ curl -X POST http://localhost:3000/agent/message \
     "message": "Calculate 15 * 8 + sqrt(144)",
     "sessionId": "math-test"
   }'
+```
+
+## Production Deployment
+
+**Live URL**: https://contextual-ai-agent.onrender.com
+
+### Production API Examples
+Replace `localhost:3000` with `contextual-ai-agent.onrender.com` in all above commands:
+
+```bash
+# Health check
+curl "https://contextual-ai-agent.onrender.com/agent/health"
+
+# AI conversation
+curl -X POST https://contextual-ai-agent.onrender.com/agent/message \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What is 25 + 37?", "sessionId": "prod-test"}'
+
+# Weather plugin
+curl -X POST https://contextual-ai-agent.onrender.com/agent/message \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Weather in London", "sessionId": "prod-test"}'
 ```
 
 ## Agent Architecture and Flow
